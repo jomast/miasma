@@ -13,6 +13,28 @@ module Miasma
 
         include Miasma::Utils::Memoization
 
+        # Stack update plan
+        class Plan < Types::Data
+
+          # Plan item
+          class Item < Types::Data
+            attribute :name, String, :required => true
+            attribute :type, String, :required => true
+            attribute :properties, String, :multiple => true
+            attribute :diffs, String, :multiple => true
+          end
+
+          class ItemCollection < Smash
+          end
+
+          attribute :add, ItemCollection, :default => ItemCollection.new
+          attribute :remove, ItemCollection, :default => ItemCollection.new
+          attribute :replace, ItemCollection, :default => ItemCollection.new
+          attribute :interrupt, ItemCollection, :default => ItemCollection.new
+          attribute :unavailable, ItemCollection, :default => ItemCollection.new
+          attribute :unknown, ItemCollection, :default => ItemCollection.new
+        end
+
         # Stack output
         class Output < Types::Data
 
@@ -42,7 +64,7 @@ module Miasma
         attribute :template_url, String
         attribute :template_description, String
         attribute :timeout_in_minutes, Integer
-        attribute :tags, Smash, :coerce => lambda{|v| v.to_smash}
+        attribute :tags, Smash, :coerce => lambda{|v| v.to_smash}, :default => Smash.new
         # TODO: This is new in AWS but I like this better for the
         # attribute. For now, keep both but i would like to deprecate
         # out the disable_rollback and provide the same functionality
@@ -73,6 +95,13 @@ module Miasma
         # @raises [Miasma::Error::OrchestrationError::InvalidTemplate]
         def validate
           perform_template_validate
+        end
+
+        # Generate plan for stack update
+        #
+        # @return [Hash]
+        def plan
+          perform_template_plan
         end
 
         # Override to scrub custom caches
@@ -110,6 +139,11 @@ module Miasma
         end
 
         protected
+
+        # Proxy plan action up to the API
+        def perform_plan
+          api.stack_plan(self)
+        end
 
         # Proxy save action up to the API
         def perform_save
